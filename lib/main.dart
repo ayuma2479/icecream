@@ -1,173 +1,117 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 
-void main() => runApp(const MaterialApp(debugShowCheckedModeBanner: false, home: IcecreamApp()));
+void main() => runApp(
+  const MaterialApp(debugShowCheckedModeBanner: false, home: IcecreamApp()),
+);
 
 class IcecreamApp extends StatefulWidget {
   const IcecreamApp({super.key});
+
   @override
   State<IcecreamApp> createState() => _IcecreamAppState();
 }
 
 class _IcecreamAppState extends State<IcecreamApp> {
-  final foods = {
-    '🍦アイスクリーム(コーン付き)': 450,
-    '🍨アイスクリーム(カップ付き)': 400,
-    '🍧かき氷(夏限定)': 400,
-  };
-  late String food = foods.keys.first;
-  final fruits = <String>{};
-  bool spoon = false, napkin = false;
+  static const foods = {'🍿 ポップコーン': 350, '🍗 ナゲット': 400};
+  static const colaPrice = 150;
+  static const setDiscount = 50;
+  static const napkinPrice = 10;
 
-  String deco = 'なし';
-  int decoCount = 1, order = 0;
+  String? food = foods.keys.first;
+  final sauces = <String>{};
+  bool cola = false, spoon = false, napkin = false;
+  int order = 0;
   String receipt = '';
 
-  Widget choices(
-    Iterable<String> items,
-    String value,
-    void Function(String) change,
-  ) => Wrap(
-    spacing: 6,
+  Widget supply(String label, bool value, void Function(bool) change) => Row(
     children: [
-      for (final s in items)
-        ChoiceChip(
-          label: Text(s),
-          selected: value == s,
-          onSelected: (_) => setState(() => change(s)),
-        ),
+      Checkbox(
+        value: value,
+        onChanged: (v) => setState(() => change(v ?? false)),
+      ),
+      Expanded(child: Text(label)),
     ],
   );
+
+  void selectFood(String? value) => setState(() {
+    food = value;
+    if (value == null) sauces.clear();
+  });
+
   @override
   Widget build(BuildContext context) {
+    final foodPrice = food == null ? 0 : foods[food]!;
+    final discount = food != null && cola ? setDiscount : 0;
     final subtotal =
-        foods[food]! +
-        fruits.length * 100 +
-        (deco == 'なし' ? 0 : decoCount * 50)
-        + (napkin ? 10 : 0);
+        foodPrice +
+        (cola ? colaPrice : 0) +
+        (napkin ? napkinPrice : 0) -
+        discount;
     final tax = subtotal ~/ 10;
     final total = subtotal + tax;
-    final photo = SizedBox(
-      width: 190,
-      height: 145,
-      child: Stack(
-        children: [
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Text(
-                deco == 'なし' ? '' : List.filled(decoCount, deco).join(),
-                style: const TextStyle(fontSize: 22),
-              ),
-            ),
-          ),
+    final canOrder = food != null || cola;
 
-          Center(
-            child: Text(
-              food.split(' ').first,
-              style: const TextStyle(fontSize: 90),
-            ),
+    final products = Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        ChoiceChip(
+          label: const Text('フードなし（ドリンク単品）'),
+          selected: food == null,
+          onSelected: (_) => selectFood(null),
+        ),
+        for (final product in foods.entries)
+          ChoiceChip(
+            label: Text('${product.key} ${product.value}円'),
+            selected: food == product.key,
+            onSelected: (_) => selectFood(product.key),
           ),
-          Positioned(
-            top: 35,
-            right: 28,
-            child: SizedBox(
-              width: 78,
-              child: Text(
-                fruits.join(),
-                textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 22),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-    final products = choices(
-      foods.keys.map((s) => '$s  ${foods[s]}円'),
-      '$food  ${foods[food]}円',
-      (s) => food = s.substring(0, s.lastIndexOf('  ')),
+      ],
     );
     final toppings = Wrap(
       spacing: 6,
       children: [
-        for (final s in ['🍓', '🍒', '🍌', '🥝', '🍇'])
+        for (final sauce in ['マヨネーズ', 'ケチャップ'])
           FilterChip(
-            label: Text(s),
-            selected: fruits.contains(s),
-            onSelected: (v) => setState(() {
-              if (v) {
-                fruits.add(s);
-              } else {
-                fruits.remove(s);
-              }
-            }),
+            label: Text('$sauce（無料）'),
+            selected: sauces.contains(sauce),
+            onSelected: food == null
+                ? null
+                : (selected) => setState(() {
+                    if (selected) {
+                      sauces.add(sauce);
+                    } else {
+                      sauces.remove(sauce);
+                    }
+                  }),
           ),
-      ],
-    );
-    final decorations = Column(
-      children: [
-        choices(['なし', '❤️', '⭐', '🌸'], deco, (s) => deco = s),
-        if (deco != 'なし')
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('デコ数'),
-              IconButton(
-                onPressed: decoCount > 0
-                    ? () => setState(() => decoCount--)
-                    : null,
-                icon: const Icon(Icons.remove),
-              ),
-              Text('$decoCount', style: const TextStyle(fontSize: 22)),
-              IconButton(
-                onPressed: decoCount < 3
-                    ? () => setState(() => decoCount++)
-                    : null,
-                icon: const Icon(Icons.add),
-              ),
-            ],
-          ),
-      ],
-    );
-    Widget supply(String label, bool value, void Function(bool) change) => Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Checkbox(
-          value: value,
-          onChanged: (v) => setState(() => change(v ?? false)),
-        ),
-        Text(label),
-      ],
-    );
-    final supplies = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        supply('🥄 スプーン（無料）', spoon, (v) => spoon = v),
-        supply('🧻 紙ナプキン（10円）', napkin, (v) => napkin = v),
       ],
     );
     final bill = Column(
       children: [
+        if (discount > 0) Text('セットドリンク割引 −$discount 円'),
         Text('税抜 $subtotal 円 / 消費税 $tax 円'),
         Text('合計 $total 円', style: const TextStyle(fontSize: 28)),
       ],
     );
     final submit = Center(
       child: FilledButton(
-        onPressed: () => setState(() {
-          order = Random().nextInt(999) + 1;
-          receipt =
-              '$food  ${foods[food]}円\n'
-              'フルーツ: ${fruits.isEmpty ? 'なし' : fruits.join(' ')}\n'
-              'デコレーション: ${deco == 'なし' ? 'なし' : '$deco x $decoCount'}\n'
-              '🥄 スプーン: ${spoon ? 'あり' : 'なし'}\n'
-              '🧻 紙ナプキン: ${napkin ? 'あり（税抜10円）' : 'なし'}\n'
-              '税抜: $subtotal 円 / 消費税（10%）: $tax 円\n'
-              '合計: $total 円';
-        }),
+        onPressed: !canOrder
+            ? null
+            : () => setState(() {
+                order++;
+                receipt = [
+                  if (food != null) '$food $foodPrice円',
+                  if (food != null)
+                    'トッピング: ${sauces.isEmpty ? 'なし' : '${sauces.join('・')}（無料）'}',
+                  if (cola) '🥤 コーラ $colaPrice円',
+                  if (discount > 0) 'セットドリンク割引: −$discount円',
+                  '🥄 スプーン: ${spoon ? 'あり（無料）' : 'なし'}',
+                  '🧻 紙ナプキン: ${napkin ? 'あり（税抜$napkinPrice円）' : 'なし'}',
+                  '税抜: $subtotal 円 / 消費税（10%）: $tax 円',
+                  '合計: $total 円',
+                ].join('\n');
+              }),
         child: const Text('注文する'),
       ),
     );
@@ -187,24 +131,41 @@ class _IcecreamAppState extends State<IcecreamApp> {
           );
 
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('🍦 Icecream 屋台注文アプリ')),
-      body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520),child: ListView(padding: const EdgeInsets.all(16), 
-        children: [
-          Center(child: photo),
-          const Text('商品を選ぶ'),
-          products,
-          const Text('フルーツトッピング（1種類100円）'),
-          toppings,
-          const Text('デコレーション（1個50円）'),
-          decorations,
-          bill,
-          const Text('備品'),
-          supplies,
-          const Divider(),
-          bill,
-          submit,
-          ticket,
-        ]))),
-        );
+      appBar: AppBar(centerTitle: true, title: const Text('🍿 屋台注文アプリ')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Center(
+                child: Text(
+                  '${food == null ? '' : food!.split(' ').first}${cola ? '🥤' : ''}',
+                  style: const TextStyle(fontSize: 90),
+                ),
+              ),
+              const Text('商品を選ぶ（価格は税抜）'),
+              products,
+              const SizedBox(height: 16),
+              const Text('トッピング（無料）'),
+              toppings,
+              const SizedBox(height: 16),
+              const Text('ドリンク'),
+              supply('🥤 コーラ（税抜$colaPrice円）', cola, (v) => cola = v),
+              const Text('フードとコーラを一緒に注文すると50円引き'),
+              const SizedBox(height: 16),
+              const Text('備品'),
+              supply('🥄 スプーン（無料）', spoon, (v) => spoon = v),
+              supply('🧻 紙ナプキン（税抜$napkinPrice円）', napkin, (v) => napkin = v),
+              const Divider(),
+              bill,
+              if (!canOrder) const Center(child: Text('フードかドリンクを選んでください')),
+              submit,
+              ticket,
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
